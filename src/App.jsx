@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { GameBoard } from './components/GameBoard';
 import { ScoreBoard } from './components/ScoreBoard';
@@ -19,66 +19,172 @@ function App() {
     [2, 4, 6],
   ];
 
-const [xScore, setXScore] = useState(0);
-const [oScore, setOScore] = useState(0);
-const [drawScore, setDrawScore] = useState(0);
+const [xScore, setXScore] = useState(() => {
+  return Number(localStorage.getItem('xScore')) || 0;
+});
+const [oScore, setOScore] = useState(() => {
+  return Number(localStorage.getItem('oScore')) || 0;
+});
+const [drawScore, setDrawScore] = useState(() => {
+  return Number(localStorage.getItem('drawScore')) || 0;
+});
 
-  const checkWinner = (currentBoard) => {
-  for (let pattern of winPatterns) {
-    const [a, b, c] = pattern;
+useEffect(() => {
+  localStorage.setItem("xScore", xScore);
+}, [xScore]);
 
-    if (
-      currentBoard[a] &&
-      currentBoard[a] === currentBoard[b] &&
-      currentBoard[a] === currentBoard[c]
-    ) {
-      return currentBoard[a];
+useEffect(() => {
+  localStorage.setItem("oScore", oScore);
+}, [oScore]);
+
+useEffect(() => {
+  localStorage.setItem("drawScore", drawScore);
+}, [drawScore]);
+
+
+
+  const restartGame = () => {
+    setBoard(Array(9).fill(""));
+    setIsXTurn(true);
+  };
+
+    const checkWinner = (currentBoard) => {
+    for (let pattern of winPatterns) {
+      const [a, b, c] = pattern;
+
+      if (
+        currentBoard[a] &&
+        currentBoard[a] === currentBoard[b] &&
+        currentBoard[a] === currentBoard[c]
+      ) {
+        return currentBoard[a];
+      }
+    }
+
+    return null;
+  };
+
+  const findBestMove = (currentBoard, player) => {
+  for (let i = 0; i < currentBoard.length; i++) {
+    if (currentBoard[i] === "") {
+      const testBoard = [...currentBoard];
+      testBoard[i] = player;
+
+      if (checkWinner(testBoard) === player) {
+        return i;
+      }
     }
   }
 
   return null;
 };
 
-const handleClick = (index) => {
-  if (board[index]) return;
+  const computerMove = (currentBoard) => {
+      let move;
 
-  const newBoard = [...board];
-  newBoard[index] = isXTurn ? "X" : "O";
+  move = findBestMove(currentBoard, "O");
 
-  setBoard(newBoard);
-
-  const winner = checkWinner(newBoard);
-
-  if (winner) {
-  if (winner === "X") {
-    setXScore((prev) => prev + 1);
-  } else {
-    setOScore((prev) => prev + 1);
+  if (move === null) {
+    move = findBestMove(currentBoard, "X");
   }
 
-    setTimeout(() => {
-    alert(`${winner} Wins!`);
-    restartGame();
-  }, 100);
+  if (move === null && currentBoard[4] === "") {
+    move = 4;
+  }
 
-  return;
-}
- 
+  if (move === null) {
+    const corners = [0, 2, 6, 8];
+    const availableCorners = corners.filter(
+      (index) => currentBoard[index] === ""
+    );
 
-  if (newBoard.every((square) => square !== "")) {
-  setDrawScore((prev) => prev + 1);
-  alert("It's a Draw! 🤝");
-  restartGame();
-  return;
-}
+    if (availableCorners.length > 0) {
+      move =
+        availableCorners[
+          Math.floor(Math.random() * availableCorners.length)
+        ];
+    }
+  }
 
-  setIsXTurn(!isXTurn);
-};
+  // 5. Take any empty square
+  if (move === null) {
+    const emptySquares = currentBoard
+      .map((square, index) => (square === "" ? index : null))
+      .filter((index) => index !== null);
 
+     move =
+      emptySquares[Math.floor(Math.random() * emptySquares.length)];
+  }
 
-  const restartGame = () => {
-    setBoard(Array(9).fill(""));
+    const newBoard = [...currentBoard];
+    newBoard[move] = "O";
+
+    setBoard(newBoard);
+
+    const winner = checkWinner(newBoard);
+
+    if (winner) {
+      setOScore((prev) => prev + 1);
+
+      setTimeout(() => {
+        alert("Computer Wins!");
+        restartGame();
+      }, 500);
+
+      return;
+    }
+
+    if (newBoard.every((square) => square !== "")) {
+      setDrawScore((prev) => prev + 1);
+
+      setTimeout(() => {
+        alert("It's a Draw!");
+        restartGame();
+      }, 500);
+
+      return;
+    }
+
     setIsXTurn(true);
+  };
+
+  const handleClick = (index) => {
+    if (board[index] || !isXTurn) return;
+
+    const newBoard = [...board];
+    newBoard[index] = "X";
+
+    setBoard(newBoard);
+
+    const winner = checkWinner(newBoard);
+
+    if (winner) {
+      setXScore((prev) => prev + 1);
+
+      setTimeout(() => {
+        alert("You Win!");
+        restartGame();
+      }, 500);
+
+      return;
+    }
+
+    if (newBoard.every((square) => square !== "")) {
+      setDrawScore((prev) => prev + 1);
+
+      setTimeout(() => {
+        alert("It's a Draw!");
+        restartGame();
+      }, 500);
+
+      return;
+    }
+
+    setIsXTurn(false);
+
+    setTimeout(() => {
+      computerMove(newBoard);
+    }, 600);
   };
 
 
@@ -89,7 +195,7 @@ const handleClick = (index) => {
           isXTurn={isXTurn}
           restartGame={restartGame}/>
         <GameBoard  board={board} handleClick={handleClick}/>
-        <ScoreBoard  XScore={xScore} drawScore={drawScore} OScore={oScore}/>
+        <ScoreBoard  xScore={xScore} drawScore={drawScore} oScore={oScore}/>
 
       </div>
 
